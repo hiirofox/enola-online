@@ -1,6 +1,6 @@
-import { NodeRenderers } from './ui/NodeTemplates.js';
+import { ModuleRegistry } from './ModuleRegistry.js';
 
-const GRID_SIZE = 20; // 吸附网格大小
+const GRID_SIZE = 20;
 
 export class GraphSystem {
     constructor(containerId, callbacks) {
@@ -13,31 +13,17 @@ export class GraphSystem {
         this.groupBox = document.getElementById('group-selection-box');
 
         this.callbacks = callbacks;
-
         this.nodes = new Map();
         this.edges = [];
-        
-        // View State
         this.view = { x: 0, y: 0, scale: 1.0 };
-        
-        // Interaction States
-        this.dragState = { 
-            active: false, 
-            type: null, 
-            targetId: null,
-            accumulated: { x: 0, y: 0 },
-            initialPositions: new Map()
-        };
-
+        this.dragState = { active: false, type: null, targetId: null, accumulated: { x: 0, y: 0 }, initialPositions: new Map() };
         this.connectionState = { active: false, startNodeId: null, startHandle: null, startType: null, startEl: null };
         this.selectionState = { active: false, startX: 0, startY: 0 }; 
         
         this.initEvents();
         this.updateTransform();
-        console.log("GraphSystem initialized with Absolute Snapping");
     }
 
-    // --- Coordinate Systems ---
     screenToWorld(clientX, clientY) {
         const rect = this.container.getBoundingClientRect();
         const x = clientX - rect.left;
@@ -57,8 +43,7 @@ export class GraphSystem {
         this.container.addEventListener('wheel', (e) => {
             e.preventDefault();
             if (e.ctrlKey) {
-                const zoomSensitivity = 0.001;
-                const delta = -e.deltaY * zoomSensitivity;
+                const delta = -e.deltaY * 0.001;
                 const oldScale = this.view.scale;
                 let newScale = Math.max(0.1, Math.min(oldScale + delta, 5.0));
 
@@ -98,17 +83,19 @@ export class GraphSystem {
                 this.selectionState.startX = e.clientX - rect.left;
                 this.selectionState.startY = e.clientY - rect.top;
                 
+                // [修复2] 在显示前重置尺寸，防止出现上一次的残留框
                 this.rubberBand.style.left = this.selectionState.startX + 'px';
                 this.rubberBand.style.top = this.selectionState.startY + 'px';
                 this.rubberBand.style.width = '0px';
                 this.rubberBand.style.height = '0px';
+                
                 this.rubberBand.classList.remove('hidden');
             }
         });
 
-        // 3. Mouse Move
+        // 3. Mouse Move (核心逻辑)
         document.addEventListener('mousemove', (e) => {
-            // Node Drag (Absolute Grid Snapping)
+            // Node Drag
             if (this.dragState.active && this.dragState.type === 'NODE') {
                 this.dragState.accumulated.x += e.movementX / this.view.scale;
                 this.dragState.accumulated.y += e.movementY / this.view.scale;
@@ -134,18 +121,19 @@ export class GraphSystem {
                         }
                     });
 
-                    this.updateEdges();
+                    // [修复1] 确保每次移动节点都触发连线重绘
+                    this.updateEdges(); 
                     this.renderGroupSelectionBox();
                 }
             }
 
-            // Connection Drag
+            // Connection Line Drag
             if (this.connectionState.active) {
                 const worldPos = this.screenToWorld(e.clientX, e.clientY);
                 this.renderTempLine(worldPos.x, worldPos.y);
             }
 
-            // Selection Drag
+            // Selection Box Drag
             if (this.selectionState.active) {
                 const rect = this.container.getBoundingClientRect();
                 const currentX = e.clientX - rect.left;
@@ -189,8 +177,6 @@ export class GraphSystem {
         });
     }
 
-    // --- Connection Logic ---
-
     startConnection(nodeId, handleId, type, portEl) {
         this.connectionState.active = true;
         this.connectionState.startNodeId = nodeId;
@@ -231,8 +217,6 @@ export class GraphSystem {
             target: targetId, targetHandle: targetHandle
         });
     }
-
-    // --- Edge Management ---
 
     addEdge(edgeParams) {
         const conflictIndex = this.edges.findIndex(e => e.target === edgeParams.target && e.targetHandle === edgeParams.targetHandle);
@@ -313,7 +297,6 @@ export class GraphSystem {
 
     getBezierPath(sx, sy, tx, ty, startType, endType) {
         const dist = Math.abs(tx - sx);
-        // "Stiffer" Bezier
         const padding = Math.max(Math.min(dist * 0.25, 80), 30);
 
         let cp1x, cp2x;
@@ -335,8 +318,6 @@ export class GraphSystem {
         return `M ${sx} ${sy} C ${cp1x} ${sy}, ${cp2x} ${ty}, ${tx} ${ty}`;
     }
 
-    // --- Selection Logic ---
-
     updateSelection(worldX, worldY, worldW, worldH) {
         this.nodes.forEach(node => {
             const nodeW = node.element.offsetWidth;
@@ -357,7 +338,6 @@ export class GraphSystem {
         this.groupBox.classList.add('hidden');
     }
 
-    // [新增] 批量選中節點 (用於 Copy/Duplicate 後自動選中)
     selectNodes(ids) {
         this.deselectAll();
         ids.forEach(id => {
@@ -397,13 +377,13 @@ export class GraphSystem {
         this.groupBox.classList.remove('hidden');
     }
 
-    // --- Node Management ---
-
     addNode(nodeData) {
-        const renderer = NodeRenderers[nodeData.type];
-        if (!renderer) return;
+        // [修改] 使用 ModuleRegistry 获取渲染函数
+        const renderUI = ModuleRegistry.getRenderer(nodeData.type);
+        if (!renderUI) return;
 
-        const el = renderer(nodeData.id, nodeData.data, this.callbacks.onNodeChange, this.callbacks.onContext);
+        const el = renderUI(nodeData.id, nodeData.data, this.callbacks.onNodeChange, this.callbacks.onContext);
+        
         el.id = nodeData.id;
         el.style.transform = `translate(${nodeData.position.x}px, ${nodeData.position.y}px)`;
         
@@ -412,7 +392,6 @@ export class GraphSystem {
             if (e.button === 0) {
                 e.stopPropagation();
                 
-                // Reset accumulator & Capture initial state
                 this.dragState.accumulated = { x: 0, y: 0 };
                 this.dragState.initialPositions = new Map();
 
