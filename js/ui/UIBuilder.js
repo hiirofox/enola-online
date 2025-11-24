@@ -1,19 +1,13 @@
 // js/ui/UIBuilder.js
 export const STANDARD_KNOB_SIZE = 36;
 
-/**
- * 创建节点外壳 (Header + Body)
- * @param {string} id - 节点 ID
- * @param {string} label - 主标题
- * @param {string} typeStr - 副标题 (如 VCO, VCF)
- * @param {string} widthClass - Tailwind 宽度类 (如 'min-w-[160px]')
- * @param {function} onContext - 右键菜单回调
- */
 export function createNodeShell(id, label, typeStr, widthClass, onContext) {
     const div = document.createElement('div');
-    div.className = `node-container bg-black ${widthClass} select-none group z-10`;
+    // 添加 touch-none，防止移动端滚动
+    div.className = `node-container bg-black ${widthClass} select-none group z-10 touch-none`;
     div.id = id;
 
+    // 仅保留 PC 端右键菜单，移动端长按由 GraphSystem 统一处理
     div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -41,9 +35,6 @@ export function createNodeShell(id, label, typeStr, widthClass, onContext) {
     return { root: div, body };
 }
 
-/**
- * 创建端口
- */
 export function createPort(parent, label, handleId, type, side, topPercent) {
     const isLeft = side === 'left';
     const wrapper = document.createElement('div');
@@ -55,7 +46,7 @@ export function createPort(parent, label, handleId, type, side, topPercent) {
     wrapper.style.zIndex = '50';
 
     const portDiv = document.createElement('div');
-    portDiv.className = "port relative z-50";
+    portDiv.className = "port relative z-50 touch-none"; // 阻止滚动
     portDiv.dataset.handleid = handleId;
     portDiv.dataset.type = type;
 
@@ -69,9 +60,6 @@ export function createPort(parent, label, handleId, type, side, topPercent) {
     parent.appendChild(wrapper);
 }
 
-/**
- * 创建一个标准的居中控件行容器
- */
 export function createControlRow(parent, className = "flex items-center justify-center pl-8 pr-8 py-2 gap-3") {
     const div = document.createElement('div');
     div.className = className;

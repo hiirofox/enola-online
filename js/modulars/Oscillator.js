@@ -9,7 +9,8 @@ export class Oscillator extends BaseNode {
     type: NodeType.OSCILLATOR,
     label: 'OSCILLATOR',
     shortLabel: 'VCO',
-    workletPath: 'js/dsp/processors/OscillatorProcessor.js',
+    workletPath: 'js/modulars/processors/OscillatorProcessor.js',
+    wasmPath: 'wasm/oscillator.wasm',
     initialValues: { pitch: 40, type: 'sawtooth', pwm: 0.5, sync: 1.0 }
   };
 
@@ -23,7 +24,7 @@ export class Oscillator extends BaseNode {
     const controls = createControlRow(body);
 
     const switchContainer = document.createElement('div');
-    switchContainer.className = "flex flex-col gap-[2px]";
+    switchContainer.className = "flex flex-col gap-[2px] pl-2 pr-0";
     new Switch(switchContainer, {
         value: data.values.type || 'sawtooth',
         options: [

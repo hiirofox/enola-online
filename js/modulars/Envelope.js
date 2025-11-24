@@ -8,7 +8,8 @@ export class Envelope extends BaseNode {
     type: NodeType.ENVELOPE,
     label: 'A/D ENVELOPE',
     shortLabel: 'ENV',
-    workletPath: 'js/dsp/processors/EnvelopeProcessor.js',
+    workletPath: 'js/modulars/processors/EnvelopeProcessor.js',
+    wasmPath: 'wasm/envelope.wasm', // [请添加此行]
     initialValues: { attack: 0.1, decay: 0.5, gain: 1.0 }
   };
 
